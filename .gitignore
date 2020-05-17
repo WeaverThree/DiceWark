@@ -1,3 +1,5 @@
 guild_data
 .vscode
 token.txt
+__pycache__
+*.pyc

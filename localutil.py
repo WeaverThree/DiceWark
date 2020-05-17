@@ -1,5 +1,5 @@
 import discord
-import dicewark
+import wark_global as wg 
 
 def debug_id(
     guild: discord.Guild=None, guildid: int=None, guildname: str="",
@@ -13,7 +13,7 @@ def debug_id(
         guildid = guild.id
         guildname = guild.name
     else:
-        guild = dicewark.bot.get_guild(guildid) if guildid is not None else None
+        guild = wg.bot.get_guild(guildid) if guildid is not None else None
         if guild:
             guildname = guild.name
         else:
@@ -23,7 +23,7 @@ def debug_id(
         userid = user.id
         username = user.name
     else:
-        user = dicewark.bot.get_user(userid) if userid is not None else None
+        user = wg.bot.get_user(userid) if userid is not None else None
         if user:
             username=user.name
         else:

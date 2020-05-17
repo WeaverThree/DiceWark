@@ -14,12 +14,15 @@ import xdice
 from localutil import debug_id
 import ffgame
 
-log = logging.getLogger()
+import wark_global as wg 
+
+
 
 # Thread-global datastore for all this async crap
-guildgames = {}
+
 
 # -- Core Bot Functions
+
 
 def get_prefix(bot, message):
     """A callable Prefix for our bot. This could be edited to allow per server prefixes."""
@@ -36,14 +39,14 @@ bot = commands.Bot(command_prefix=get_prefix, description='Weaver Test')
 async def on_ready():
     """http://discordpy.readthedocs.io/en/rewrite/api.html#discord.on_ready"""
 
-    log.info(f'\n\nLogged in as: {bot.user.name} - {bot.user.id}\nVersion: {discord.__version__}\n')
+    wg.log.info(f'\n\nLogged in as: {bot.user.name} - {bot.user.id}\nVersion: {discord.__version__}\n')
 
     for guild in bot.guilds:
-        guildgames[guild.id] = ffgame.FFGame(guild)
+        wg.guildgames[guild.id] = ffgame.FFGame(guild)
 
 
     await bot.change_presence(activity=discord.CustomActivity(name='Test Bot'))
-    log.info(f'\nSuccessfully logged in and booted...!\n')
+    wg.log.info(f'\nSuccessfully logged in and booted...!\n')
 
 @bot.event
 async def on_command_error(ctx, exception):
@@ -63,12 +66,12 @@ async def on_command_error(ctx, exception):
 @commands.is_owner()
 async def shutdown(ctx):
     await ctx.send("Shutting down...")
-    log.info(f'Accepting shutdown request from {ctx.author} ...')
+    wg.log.info(f'Accepting shutdown request from {ctx.author} ...')
     await ctx.bot.close()
 
 @bot.command()
 async def save(ctx):
-    for game in guildgames.values():
+    for game in wg.guildgames.values():
         game.save()
     await ctx.send("Saved.")    
   
@@ -104,7 +107,7 @@ async def mychar(ctx, name: str, token: str=None,
     if token is not None and len(token) != 1:
         raise discord.ext.commands.BadArgument("Token must be one character")
      
-    game = guildgames[ctx.guild.id]
+    game = wg.guildgames[ctx.guild.id]
     chardata = {}
     # print(game)help 
 
@@ -145,9 +148,10 @@ mychar.usage = "<name> [token] [(air | earth air fire water)] [init]"
 # Startup 
 
 if __name__ == "__main__":
+    wg.bot = bot
     logging.basicConfig(level=logging.INFO)
     bot.run(open("token.txt").read().strip(), bot=True, reconnect=True)
-    log.info("\nPost-run cleanup here\n\n")
-    for game in guildgames.values():
+    wg.log.info("\nPost-run cleanup here\n\n")
+    for game in wg.guildgames.values():
         game.save()
 

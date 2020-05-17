@@ -5,11 +5,8 @@ import json
 
 from localutil import debug_id
 
-import ffrpgbot
+import wark_global as wg 
 
-DATADIR = "./guild_data"
-
-log = logging.getLogger()
 
 # Game data section
 
@@ -73,7 +70,7 @@ class Character:
     def from_data(self, data):
         for field in (field for field in self.SAVE_FIELDS if field not in data):
             cid = debug_id(guild=self.game.guild, user=self.user, charname=data.get('name',None))
-            log.warning(f"Character {cid} missing field {field}")
+            wg.log.warning(f"Character {cid} missing field {field}")
 
         for field in data:
             # Expects secured data
@@ -87,7 +84,7 @@ class FFGame:
         self.guild = guild
         self.usercharacters = {}
         self.npcs = {}
-        log.info(f'Guild {debug_id(guild=guild)} created')
+        wg.log.info(f'Guild {debug_id(guild=guild)} created')
         self.load()
 
     def adduser(self, user, **kwargs):
@@ -105,7 +102,7 @@ class FFGame:
     
     def save(self):
         # os.mkdirs(DATADIR, exist_ok=True)
-        savefile = os.path.join(DATADIR, str(self.guild.id) + ".json")
+        savefile = os.path.join(wg.DATADIR, str(self.guild.id) + ".json")
 
         savedata = {
             'userchars': {id:self.usercharacters[id].to_data() for id in self.usercharacters},
@@ -113,13 +110,13 @@ class FFGame:
             'last_known_name': self.guild.name,
         }
 
-        with tempfile.NamedTemporaryFile(mode="w", dir=DATADIR) as outf:
+        with tempfile.NamedTemporaryFile(mode="w", dir=wg.DATADIR) as outf:
             json.dump(savedata, outf, indent=1)
             if os.path.exists(savefile):
                 os.unlink(savefile)
             os.link(outf.name, savefile)
 
-        log.info(f'Guild {debug_id(guild=self.guild)} saved. '
+        wg.log.info(f'Guild {debug_id(guild=self.guild)} saved. '
             f'{len(self.usercharacters)} user chars and {len(self.npcs)} npcs.')
 
         pass
@@ -127,29 +124,29 @@ class FFGame:
     def load(self):
 
         if self.usercharacters or self.npcs:
-            log.critical(f"load() called on active FFGame {debug_id(guild=self.guild)}. "
+            wg.log.critical(f"load() called on active FFGame {debug_id(guild=self.guild)}. "
                 "Live data will be overwritten.")
         
-        savefile = os.path.join(DATADIR, str(self.guild.id) + ".json")
+        savefile = os.path.join(wg.DATADIR, str(self.guild.id) + ".json")
         if not os.path.isfile(savefile):
-            log.info(f'No save data for {debug_id(guild=self.guild)}')
+            wg.log.info(f'No save data for {debug_id(guild=self.guild)}')
             return
         
         with open(savefile) as inf:
             data = json.load(inf)
 
         for uid, chardata in data['userchars'].items():
-            user = ffrpgbot.bot.get_user(int(uid))
+            user = wg.bot.get_user(int(uid))
             if user is None:
                 name = chardata.get('last_known_dname', '') 
                 cname = chardata.get("name","INVALID")
-                log.warning(
+                wg.log.warning(
                     f'User {debug_id(guild=self.guild, userid=uid, username=name)}'
                     f'not found on discord, dropping character record "{cname}"')
                 continue
             self.usercharacters[user.id] = Character(self, user, data=chardata)
         
-        log.info(f'Guild {debug_id(guild=self.guild)} loaded. '
+        wg.log.info(f'Guild {debug_id(guild=self.guild)} loaded. '
             f'{len(self.usercharacters)} user chars and {len(self.npcs)} npcs.')
             
 
