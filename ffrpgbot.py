@@ -28,8 +28,9 @@ def debug_id(
     guild: discord.Guild=None, guildid: int=None, guildname: str="",
     user: discord.User=None, userid: int=None, username: str="", charname: str=""):
 
-    useguild = any(guild,guildid,guildname)
-    useuser = any(user,userid,username)
+    useguild = any((guild,guildid,guildname))
+    useuser = any((user,userid,username))
+    usechar = bool(charname)
 
     if guild:
         guildid = guild.id
@@ -63,9 +64,10 @@ def debug_id(
 
     g_out = f'{guildname} ({guildid})' if useguild else ''
     u_out = f'{username} ({userid})' if useuser else ''
+    c_out = f'{charname}' if usechar else ''
 
     
-    out = f'{charname}{" of " if charname else ""}{u_out}{" from " if u_out and g_out else ""}{g_out}'
+    out = f'{c_out}{" of " if c_out and (u_out or g_out) else ""}{u_out}{" from " if u_out and g_out else ""}{g_out}'
 
     
     return(out)
@@ -149,9 +151,8 @@ class FFGame:
         self.guild = guild
         self.usercharacters = {}
         self.npcs = {}
-        print(f'Guild {guild.id} for {guild.name} created')
+        log.info(f'Guild {debug_id(guild=guild)} created')
         self.load()
-        # load from file if exists
 
     def adduser(self, user, **kwargs):
         uid = user.id
@@ -182,31 +183,38 @@ class FFGame:
                 os.unlink(savefile)
             os.link(outf.name, savefile)
 
+        log.info(f'Guild {debug_id(guild=self.guild)} saved. '
+            f'{len(self.usercharacters)} user chars and {len(self.npcs)} npcs.')
+
         pass
 
     def load(self):
 
         if self.usercharacters or self.npcs:
-            log.critical(f"load() called on active FFGame {self.guild.id} {self.guild.name}. "
+            log.critical(f"load() called on active FFGame {debug_id(guild=self.guild)}. "
                 "Live data will be overwritten.")
         
         savefile = os.path.join(DATADIR, str(self.guild.id) + ".json")
         if not os.path.isfile(savefile):
+            log.info(f'No save data for {debug_id(guild=self.guild)}')
             return
         
         with open(savefile) as inf:
             data = json.load(inf)
 
         for uid, chardata in data['userchars'].items():
-            print(uid, chardata)
             user = bot.get_user(int(uid))
             if user is None:
                 name = chardata.get('last_known_dname', '') 
+                cname = chardata.get("name","INVALID")
                 log.warning(
-                    f'User ID {user} {"last known as" if name else "--NAME UNKNOWN--"} {name} "'
-                    f'not found on discord, dropping character record')
+                    f'User {debug_id(guild=self.guild, userid=uid, username=name)}'
+                    f'not found on discord, dropping character record "{cname}"')
                 continue
             self.usercharacters[user.id] = Character(self, user, data=chardata)
+        
+        log.info(f'Guild {debug_id(guild=self.guild)} loaded. '
+            f'{len(self.usercharacters)} user chars and {len(self.npcs)} npcs.')
             
 
         
@@ -233,14 +241,14 @@ bot = commands.Bot(command_prefix=get_prefix, description='Weaver Test')
 async def on_ready():
     """http://discordpy.readthedocs.io/en/rewrite/api.html#discord.on_ready"""
 
-    print(f'\n\nLogged in as: {bot.user.name} - {bot.user.id}\nVersion: {discord.__version__}\n')
+    log.info(f'\n\nLogged in as: {bot.user.name} - {bot.user.id}\nVersion: {discord.__version__}\n')
 
     for guild in bot.guilds:
         guildgames[guild.id] = FFGame(guild)
 
 
     await bot.change_presence(activity=discord.CustomActivity(name='Test Bot'))
-    print(f'Successfully logged in and booted...!')
+    log.info(f'\nSuccessfully logged in and booted...!\n')
 
 @bot.command()
 @commands.guild_only()
@@ -266,23 +274,11 @@ async def on_command_error(ctx, exception):
 
     traceback.print_exception(type(exception), exception, exception.__traceback__, file=sys.stderr)
 
-# @bot.event
-# async def on_error(ename, ctx, exception):
-#     out = []
-#     for x in dir(exception):
-#         out.append(f"{x} -- {getattr(exception,x)}")
-#     out = '\n'.join(out)
-#     await ctx.send(f"Error:\n{out}")
-#     print('Ignoring exception in command {}:'.format(ctx.command), file=sys.stderr)
-    
-#     traceback.print_exception(type(exception), exception, exception.__traceback__, file=sys.stderr)
-
-
 @bot.command()
 @commands.is_owner()
 async def shutdown(ctx):
     await ctx.send("Shutting down...")
-    print(f'Accepting shutdown request from {ctx.author} ...')
+    log.info(f'Accepting shutdown request from {ctx.author} ...')
     await ctx.bot.close()
 
 @bot.command()
@@ -346,7 +342,7 @@ mychar.usage = "<name> [token] [(air | earth air fire water)] [init]"
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     bot.run(open("token.txt").read().strip(), bot=True, reconnect=True)
-    print("Post-run cleanup here?")
+    log.info("\nPost-run cleanup here\n\n")
     for game in guildgames.values():
         game.save()
 
