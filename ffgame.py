@@ -11,13 +11,14 @@ import wark_global as wg
 # Game data section
 
 class Character:
+    """ Represents one character in one FFRPG game. """
     SAVE_FIELDS =  (
         'token', 'name', 'init',
         'earth', 'air', 'fire', 'water',
         'maskearth', 'maskair', 'maskfire', 'maskwater')
 
     def __init__(self, game, user, *, data=None, **kwargs):
-
+        """ Use data if loading a character, otherwise pretend this is initalize() """
         self.game = game
         self.user = user
     
@@ -28,6 +29,8 @@ class Character:
 
         
     def initialize(self, *, token=None, name=None, init=None, earth=None, air=None, fire=None, water=None):
+        """ Make a new character from given data, initializing un-provided stuff to base state. Therefore also documents what attributes a character should have, along with SAVE_FIELDS. Remember to update both. """
+
         self.name = name if name else self.user.name
         self.token = token if token else self.name[0]
         self.earth = earth if earth else 0
@@ -41,6 +44,7 @@ class Character:
         self.maskwater = False
     
     def format(self):
+        """ Make publically printable character summary. """
 
         earth = "???" if self.maskearth else self.earth
         air = "???" if self.maskair else self.air
@@ -60,6 +64,7 @@ class Character:
         )
     
     def to_data(self):
+        """ Become JSON """
         data = {}
         for field in self.SAVE_FIELDS:
             data[field] = getattr(self, field, None)
@@ -68,6 +73,7 @@ class Character:
         return data
     
     def from_data(self, data):
+        """ Overwrite all data with incoming JSON. Doesn't bother with defaults. Maybe it should to be safer? """
         for field in (field for field in self.SAVE_FIELDS if field not in data):
             cid = debug_id(guild=self.game.guild, user=self.user, charname=data.get('name',None))
             wg.log.warning(f"Character {cid} missing field {field}")
@@ -80,7 +86,9 @@ class Character:
 
 
 class FFGame:
+    """ Reprsenents an FFRPG game. Right now, one game per server """
     def __init__(self, guild):
+        """ Create a game based on a server/guild ID. Will save/load data based on that ID """
         self.guild = guild
         self.usercharacters = {}
         self.npcs = {}
@@ -88,6 +96,7 @@ class FFGame:
         self.load()
 
     def adduser(self, user, **kwargs):
+        """ Add a new player character tied to the player's ID. Not for NPCs, therefore. """
         uid = user.id
         oldchar = None
         if uid in self.usercharacters:
@@ -101,6 +110,7 @@ class FFGame:
         return '\n'.join(message)
     
     def save(self):
+        """ Save all our data in a file named after our guild ID """
         # os.mkdirs(DATADIR, exist_ok=True)
         savefile = os.path.join(wg.DATADIR, str(self.guild.id) + ".json")
 
@@ -122,6 +132,7 @@ class FFGame:
         pass
 
     def load(self):
+        """ Load all data given we know our guild ID """
 
         if self.usercharacters or self.npcs:
             wg.log.critical(f"load() called on active FFGame {debug_id(guild=self.guild)}. "
@@ -148,6 +159,3 @@ class FFGame:
         
         wg.log.info(f'Guild {debug_id(guild=self.guild)} loaded. '
             f'{len(self.usercharacters)} user chars and {len(self.npcs)} npcs.')
-            
-
-        

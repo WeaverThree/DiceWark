@@ -16,10 +16,7 @@ import ffgame
 
 import wark_global as wg 
 
-
-
-# Thread-global datastore for all this async crap
-
+""" Direct interface with discord, mostly in the form of setting up the commands the user will use. Some of this was taken from discord.py examples originally. """
 
 # -- Core Bot Functions
 
@@ -50,6 +47,8 @@ async def on_ready():
 
 @bot.event
 async def on_command_error(ctx, exception):
+    """ I think this prints help to the user if ANY exception happens during a command, and also dumps the traceback to the output for non-user error... """
+
     usage=""
     if ctx.command is not None and ctx.command.signature:
         usage= f'`{ctx.prefix}{ctx.invoked_with} {ctx.command.signature}`'
@@ -65,12 +64,14 @@ async def on_command_error(ctx, exception):
 @bot.command()
 @commands.is_owner()
 async def shutdown(ctx):
+    """There isn't a clean way to shut down and save data by default. This is probably better than trapping ctrl-c on the logg menu, though maybe we should do that too."""
     await ctx.send("Shutting down...")
     wg.log.info(f'Accepting shutdown request from {ctx.author} ...')
     await ctx.bot.close()
 
 @bot.command()
 async def save(ctx):
+    """ Force save to disk. Hopefully a useless command, really. """
     for game in wg.guildgames.values():
         game.save()
     await ctx.send("Saved.")    
@@ -79,7 +80,7 @@ async def save(ctx):
 
 @bot.command()
 async def roll(ctx, *, expression):
-    """Says when a member joined."""
+    """ Proxy a dice expression to the xdice library. """
     result = xdice.roll(expression)
     output = []
     for score in result.scores():

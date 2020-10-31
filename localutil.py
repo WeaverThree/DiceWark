@@ -4,6 +4,7 @@ import wark_global as wg
 def debug_id(
     guild: discord.Guild=None, guildid: int=None, guildname: str="",
     user: discord.User=None, userid: int=None, username: str="", charname: str=""):
+    """ Print as much useful information as can be gathered based on what information it's given, to help debug understanding mostly. """
 
     useguild = any((guild,guildid,guildname))
     useuser = any((user,userid,username))
