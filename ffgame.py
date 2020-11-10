@@ -5,14 +5,82 @@ import json
 
 from localutil import debug_id
 
-import wark_global as wg 
+import wark_global as wg
 
+class GameException(Exception): pass
+class BadOption(GameException): pass
+class BadValue(GameException): pass
+
+class GameOptions:
+    def __init__(self, game, data):
+        self.options_rev = "1"
+        self.options_list = []
+        for option_def in option_definitions:
+            newopt = GameOption(self, **option_def)
+            setattr(self, newopt.id, newopt)
+            self.options_list.append(newopt.id)
+        self.from_data(data)
+
+    def from_data(self, data):
+        error_server = f"while loading server {debug_id(server=game.guildid)}"
+        if data.revision != self.options_rev:
+            wg.log.error(f"Options Revision Mismatch '{data.revision}' {error_server}.")
+        
+        for option, value in data['options']:
+            if hasattr(self,option):
+                try:
+                    getattr(self, option).set(value)
+                except BadValue:
+                    wg.log.error(f"Bad value for '{option}', '{value}', {error_server}")
+            else:
+                wg.log.error(f"Bad option '{option}', {error_server}")
+    
+    def to_data(self):
+        data = {}
+        data['revision'] = self.options_rev
+        data_options = []
+        for optid in self.options_list:
+            data.options.append((optid, getattr(self,optid)))
+        return data
+                
+class GameOption:
+    def __init__(self, id, name, desc, choices, meanings):
+        self.id = id
+        self.name = name 
+        self.desc = desc
+        self.choices = choices
+        self.default = choices[0]
+        self.meanings = meanings
+        self.value = self.default
+    
+    def set(self, value):
+        if value in self.choices:
+            self.value = value
+        else:
+            raise BadValue(f"{self.name} valid options are: {', '.join(self.choices)}")
+
+    def __str__(self):
+        return self.value
+    def __eq__(self, other):
+        return self.value == other.value if isinstance(other, GameOption) else self.value == other 
+
+
+option_definitions = [
+    {'id': 'reaction_type', 'name': 'Reaction Rules', 'desc': 'How to handle dice used in reactions',
+    'choices': ['4.0','4.1'], 'meanings': [
+        "Must have a held die or die in phase to use a reaction.",
+        "Reacitons use next available die."]},
+    {'id': 'rolling_init', 'name': 'Rolling Initiative Rule', 'desc': 'Optional rule to make initiative more dynamic',
+        'choices': ['disabled','enabled'],'meanings': [
+            "Use discrete rounds of 10 phases and reroll dice per round.",
+            "Use endless sequence of phases and reroll each die as it's used, add 10 and current phase to it."]},
+]
 
 # Game data section
 
 class Character:
     """ Represents one character in one FFRPG game. """
-    SAVE_FIELDS =  (
+    SAVE_FIELDS :   (
         'token', 'name', 'init',
         'earth', 'air', 'fire', 'water',
         'maskearth', 'maskair', 'maskfire', 'maskwater')

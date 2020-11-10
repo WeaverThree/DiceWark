@@ -3,3 +3,4 @@ guild_data
 token.txt
 __pycache__
 *.pyc
+workspace.code-workspace
