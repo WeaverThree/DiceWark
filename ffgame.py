@@ -12,21 +12,25 @@ class BadOption(GameException): pass
 class BadValue(GameException): pass
 
 class GameOptions:
-    def __init__(self, game, data):
+    def __init__(self, game, data = None):
         self.options_rev = "1"
         self.options_list = []
+        self.game = game
+        data = {} if data is None else data 
         for option_def in option_definitions:
-            newopt = GameOption(self, **option_def)
+            newopt = GameOption(game, **option_def)
             setattr(self, newopt.id, newopt)
             self.options_list.append(newopt.id)
         self.from_data(data)
 
     def from_data(self, data):
-        error_server = f"while loading server {debug_id(server=game.guildid)}"
-        if data.revision != self.options_rev:
+        error_server = f"while loading server {debug_id(guild=self.game.guild)}"
+        if 'revision' in data and data['revision'] != self.options_rev:
             wg.log.error(f"Options Revision Mismatch '{data.revision}' {error_server}.")
         
-        for option, value in data['options']:
+        for option, value in data:
+            if option == "revision":
+                continue
             if hasattr(self,option):
                 try:
                     getattr(self, option).set(value)
@@ -40,11 +44,11 @@ class GameOptions:
         data['revision'] = self.options_rev
         data_options = []
         for optid in self.options_list:
-            data.options.append((optid, getattr(self,optid)))
+            data[optid] = getattr(self,optid).value
         return data
                 
 class GameOption:
-    def __init__(self, id, name, desc, choices, meanings):
+    def __init__(self, game, id, name, desc, choices, meanings):
         self.id = id
         self.name = name 
         self.desc = desc
@@ -52,6 +56,7 @@ class GameOption:
         self.default = choices[0]
         self.meanings = meanings
         self.value = self.default
+        self.game = game # Hmmm maybe
     
     def set(self, value):
         if value in self.choices:
@@ -186,6 +191,7 @@ class FFGame:
             'userchars': {id:self.usercharacters[id].to_data() for id in self.usercharacters},
             'guildid': self.guild.id,
             'last_known_name': self.guild.name,
+            'options': self.options.to_data(),
         }
 
         with tempfile.NamedTemporaryFile(mode="w", dir=wg.DATADIR) as outf:
@@ -224,6 +230,9 @@ class FFGame:
                     f'not found on discord, dropping character record "{cname}"')
                 continue
             self.usercharacters[user.id] = Character(self, user, data=chardata)
+
+        self.options = GameOptions(self, data['options'] if 'options' in data else None)
+
         
         wg.log.info(f'Guild {debug_id(guild=self.guild)} loaded. '
             f'{len(self.usercharacters)} user chars and {len(self.npcs)} npcs.')
